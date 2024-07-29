@@ -59,7 +59,7 @@ def productivity_calendar():
         # Display tasks
         st.header("Tasks")
         for i, task in enumerate(st.session_state.tasks):
-            cols = st.columns([0.02, 0.5, 0.15])
+            cols = st.columns([0.02, 0.78, 0.02])
             done = cols[0].checkbox("", value=task['done'], key=f"checkbox_{i}")
             if done:
                 st.session_state.tasks[i]['done'] = True

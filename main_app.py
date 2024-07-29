@@ -55,62 +55,60 @@ def login():
     if st.button("Login", key="login_button"):
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
         user = st.session_state.users_df[(st.session_state.users_df['email'] == email) & (st.session_state.users_df['password'] == hashed_password)]
-
         if not user.empty:
             if user.iloc[0]['approved']:
-                st.session_state.authenticated = True
-                st.session_state.current_user = email
-                st.session_state.is_admin = user.iloc[0]['role'] == 'admin'
-                st.success(f"Welcome, {email}!")
+                st.session_state['authenticated'] = True
+                st.session_state['current_user'] = user.iloc[0]['email']
+                st.session_state['is_admin'] = user.iloc[0]['role'] == 'admin'
+                st.success(f"Welcome {st.session_state['current_user']}!")
             else:
-                st.error("Your account has not been approved by the admin yet.")
+                st.warning("Your account is not approved by admin yet.")
         else:
-            st.error("Invalid email or password.")
+            st.error("Invalid email or password")
 
-# Function for admin approval of users
+# Function to approve users by admin
 def admin_approve():
     st.title("Admin Approval")
-    pending_users = st.session_state.users_df[st.session_state.users_df['approved'] == False]
-
-    if not pending_users.empty:
-        for i, user in pending_users.iterrows():
-            st.write(f"Email: {user['email']}")
-            if st.button(f"Approve {user['email']}", key=f"approve_{i}"):
-                st.session_state.users_df.loc[i, 'approved'] = True
+    unapproved_users = st.session_state.users_df[~st.session_state.users_df['approved']]
+    if not unapproved_users.empty:
+        for idx, user in unapproved_users.iterrows():
+            st.write(f"User: {user['email']}")
+            if st.button(f"Approve {user['email']}", key=f"approve_{user['email']}"):
+                st.session_state.users_df.loc[idx, 'approved'] = True
                 save_users(st.session_state.users_df)
-                st.success(f"Approved {user['email']}")
+                st.success(f"User {user['email']} approved.")
     else:
         st.write("No users pending approval.")
 
 # Function to change password
 def change_password():
     st.title("Change Password")
-    current_password = st.text_input("Enter current password", type="password")
-    new_password = st.text_input("Enter new password", type="password")
-    confirm_password = st.text_input("Confirm new password", type="password")
+    current_password = st.text_input("Current Password", type="password")
+    new_password = st.text_input("New Password", type="password")
+    confirm_new_password = st.text_input("Confirm New Password", type="password")
 
     if st.button("Change Password", key="change_password_button"):
         hashed_current_password = hashlib.sha256(current_password.encode()).hexdigest()
-        user = st.session_state.users_df[(st.session_state.users_df['email'] == st.session_state.current_user) & (st.session_state.users_df['password'] == hashed_current_password)]
-
-        if not user.empty:
-            if new_password == confirm_password:
-                hashed_new_password = hashlib.sha256(new_password.encode()).hexdigest()
-                st.session_state.users_df.loc[st.session_state.users_df['email'] == st.session_state.current_user, 'password'] = hashed_new_password
-                save_users(st.session_state.users_df)
-                st.success("Password changed successfully!")
-            else:
-                st.error("New passwords do not match.")
-        else:
+        if st.session_state.users_df[
+            (st.session_state.users_df['email'] == st.session_state['current_user']) &
+            (st.session_state.users_df['password'] == hashed_current_password)
+        ].empty:
             st.error("Current password is incorrect.")
+        elif new_password != confirm_new_password:
+            st.error("New passwords do not match.")
+        else:
+            hashed_new_password = hashlib.sha256(new_password.encode()).hexdigest()
+            st.session_state.users_df.loc[
+                st.session_state.users_df['email'] == st.session_state['current_user'], 'password'
+            ] = hashed_new_password
+            save_users(st.session_state.users_df)
+            st.success("Password changed successfully.")
 
-# Main function to handle different user actions
+# Main function
 def main():
-    st.sidebar.title("Menu")
-
-    if st.session_state.authenticated:
-        st.sidebar.write(f"Logged in as: {st.session_state.current_user}")
-
+    if st.session_state['authenticated']:
+        st.sidebar.title(f"Welcome, {st.session_state['current_user']}")
+        st.sidebar.markdown("## Navigation")
         if st.session_state.is_admin:
             admin_dashboard()
         else:

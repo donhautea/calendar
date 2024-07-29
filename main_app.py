@@ -5,10 +5,6 @@ import json
 from datetime import datetime
 from functions import (
     read_data,
-    read_linked_data,
-    process_pdfs,
-    compute_volatility,
-    compute_average,
     get_latest_date,
     load_users,
     save_users,

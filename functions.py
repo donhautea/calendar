@@ -1,4 +1,3 @@
-import pdfplumber
 import re
 import shutil
 import pandas as pd
@@ -7,61 +6,6 @@ import hashlib
 from datetime import datetime
 import os
 
-# Function to read data from the uploaded file
-def read_data(uploaded_file):
-    try:
-        df = pd.read_csv(uploaded_file)
-        return df
-    except Exception as e:
-        return None
-
-# Function to read data from the linked path
-def read_linked_data(path):
-    try:
-        df = pd.read_csv(path)
-        return df
-    except Exception as e:
-        return None
-
-# Function to process PDF files and extract data
-def process_pdfs(directory):
-    all_data = []
-    for root, _, files in os.walk(directory):
-        for file in files:
-            if file.endswith(".pdf"):
-                full_path = os.path.join(root, file)
-                data = extract_data_from_pdf(full_path)
-                date_pattern = r"(\d{4}-\d{2}-\d{2})"
-                match = re.search(date_pattern, file)
-                if match:
-                    extracted_date = datetime.strptime(match.group(1), "%Y-%m-%d")
-                    for row in data:
-                        row.append(extracted_date)
-                all_data.extend(data)
-    return pd.DataFrame(all_data, columns=["Tenor", "BVAL Rate Today", "Date"]).set_index("Date")
-
-# Function to extract data from a PDF file
-def extract_data_from_pdf(pdf_path):
-    with pdfplumber.open(pdf_path) as pdf:
-        page = pdf.pages[0]
-        text = page.extract_text()
-    rows = text.split("\n")[1:]
-    return [row.split()[:2] for row in rows]
-
-# Function to compute volatility
-def compute_volatility(df, tenor, period):
-    df_filtered = df[df['Tenor'] == tenor]
-    df_filtered['Daily Returns'] = df_filtered['BVAL Rate Today'].pct_change()
-    period_days = {"2Y": 504, "1.5Y": 378, "1Y": 252, "6M": 126, "3M": 63, "1M": 21, "1W": 5}
-    days = period_days.get(period, 252)
-    return df_filtered['Daily Returns'].tail(days).std() * (252 ** 0.5)
-
-# Function to compute average
-def compute_average(df, tenor, period):
-    df_filtered = df[df['Tenor'] == tenor]
-    period_days = {"2Y": 504, "1.5Y": 378, "1Y": 252, "6M": 126, "3M": 63, "1M": 21, "1W": 5}
-    days = period_days.get(period, 252)
-    return df_filtered['BVAL Rate Today'].tail(days).mean()
 
 # Function to get the latest date in the CSV file
 def get_latest_date(file_path):

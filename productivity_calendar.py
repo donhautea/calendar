@@ -59,11 +59,11 @@ def productivity_calendar():
         # Display tasks
         st.header("Tasks")
         for i, task in enumerate(st.session_state.tasks):
-            cols = st.columns([0.05, 0.9, 0.05])
-            done = cols[0].checkbox("", value=task['done'], key=f"checkbox_{i}")
-            if done:
+            task_done = st.checkbox("", value=task['done'], key=f"checkbox_{i}")
+            if task_done:
                 st.session_state.tasks.pop(i)
                 st.experimental_rerun()
+            st.write(f"{task['task']}")
 
         # Save and load the notes and tasks
         if st.button("Save Data"):

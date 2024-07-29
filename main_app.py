@@ -4,7 +4,6 @@ import hashlib
 import json
 from datetime import datetime
 from functions import (
-    read_data,
     get_latest_date,
     load_users,
     save_users,

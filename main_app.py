@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import hashlib
+import json
+from datetime import datetime
 from functions import (
     read_data,
     read_linked_data,
@@ -12,14 +14,10 @@ from functions import (
     save_users,
     ensure_default_admin
 )
-from read_portfolio import portfolio_performance  # Import the function
-from equity_transactions import equity_transactions
-from equity_update import equity_update_tool
-from equity_portfolio_viewer import equity_portfolio_viewer
-from equity_update import equity_update_tool
+from productivity_calendar import productivity_calendar
 
 # Set Streamlit page configuration to wide layout
-st.set_page_config(layout="wide")
+st.set_page_config(page_title="Productivity Dashboard", layout="wide")
 
 # Initialize session state variables
 if 'authenticated' not in st.session_state:
@@ -53,46 +51,6 @@ def register():
         else:
             st.error("Passwords do not match.")
 
-# Function for admin approval of users
-def admin_approve():
-    if not st.session_state['admin_authenticated']:
-        st.title("Admin Login")
-        email = st.text_input("Enter admin email address")
-        password = st.text_input("Enter admin password", type="password")
-        if st.button("Login as Admin", key="admin_login_button"):
-            hashed_password = hashlib.sha256(password.encode()).hexdigest()
-            admin_row = st.session_state.users_df[
-                (st.session_state.users_df['email'] == email) &
-                (st.session_state.users_df['password'] == hashed_password) &
-                (st.session_state.users_df['role'] == 'admin')
-            ]
-
-            if not admin_row.empty:
-                st.success("Admin logged in successfully!")
-                st.session_state['admin_authenticated'] = True
-                st.experimental_rerun()  # Refresh the page to show the admin approval
-            else:
-                st.error("Invalid admin credentials.")
-    else:
-        st.title("Admin Approval")
-        pending_users = st.session_state.users_df[st.session_state.users_df['approved'] == False]
-        user_roles = {}
-        if not pending_users.empty:
-            for index, row in pending_users.iterrows():
-                st.write(f"Email: {row['email']}")
-                role = st.selectbox(f"Select role for {row['email']}", ["user", "admin"], key=f"role_{index}")
-                user_roles[row['email']] = role
-                st.session_state.users_df.at[index, 'role'] = role
-
-            if st.button("Approve Selected Users", key="approve_users_button"):
-                for index, row in pending_users.iterrows():
-                    st.session_state.users_df.at[index, 'approved'] = True
-                save_users(st.session_state.users_df)
-                st.success("Selected users approved!")
-                st.experimental_rerun()
-        else:
-            st.info("No users awaiting approval.")
-
 # Function for user login
 def login():
     st.title("Login")
@@ -101,42 +59,49 @@ def login():
 
     if st.button("Login", key="login_button"):
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
-        user_row = st.session_state.users_df[
-            (st.session_state.users_df['email'] == email) &
-            (st.session_state.users_df['password'] == hashed_password)
-        ]
+        user = st.session_state.users_df[(st.session_state.users_df['email'] == email) & (st.session_state.users_df['password'] == hashed_password)]
 
-        if not user_row.empty:
-            if user_row['approved'].values[0]:
-                st.success("Logged in successfully!")
-                st.session_state['authenticated'] = True
-                st.session_state['current_user'] = email
-                st.session_state['is_admin'] = user_row['role'].values[0] == 'admin'
-                st.experimental_rerun()  # Refresh the page to show the dashboard
+        if not user.empty:
+            if user.iloc[0]['approved']:
+                st.session_state.authenticated = True
+                st.session_state.current_user = email
+                st.session_state.is_admin = user.iloc[0]['role'] == 'admin'
+                st.success(f"Welcome, {email}!")
             else:
-                st.warning("Your account is pending approval by the admin. Please wait.")
+                st.error("Your account has not been approved by the admin yet.")
         else:
-            st.error("Invalid credentials.")
+            st.error("Invalid email or password.")
 
+# Function for admin approval of users
+def admin_approve():
+    st.title("Admin Approval")
+    pending_users = st.session_state.users_df[st.session_state.users_df['approved'] == False]
+
+    if not pending_users.empty:
+        for i, user in pending_users.iterrows():
+            st.write(f"Email: {user['email']}")
+            if st.button(f"Approve {user['email']}", key=f"approve_{i}"):
+                st.session_state.users_df.loc[i, 'approved'] = True
+                save_users(st.session_state.users_df)
+                st.success(f"Approved {user['email']}")
+    else:
+        st.write("No users pending approval.")
+
+# Function to change password
 def change_password():
     st.title("Change Password")
-    current_password = st.text_input("Enter your current password", type="password")
-    new_password = st.text_input("Enter your new password", type="password")
-    confirm_new_password = st.text_input("Confirm your new password", type="password")
+    current_password = st.text_input("Enter current password", type="password")
+    new_password = st.text_input("Enter new password", type="password")
+    confirm_password = st.text_input("Confirm new password", type="password")
 
     if st.button("Change Password", key="change_password_button"):
         hashed_current_password = hashlib.sha256(current_password.encode()).hexdigest()
-        user_row = st.session_state.users_df[
-            (st.session_state.users_df['email'] == st.session_state['current_user']) &
-            (st.session_state.users_df['password'] == hashed_current_password)
-        ]
+        user = st.session_state.users_df[(st.session_state.users_df['email'] == st.session_state.current_user) & (st.session_state.users_df['password'] == hashed_current_password)]
 
-        if not user_row.empty:
-            if new_password == confirm_new_password:
+        if not user.empty:
+            if new_password == confirm_password:
                 hashed_new_password = hashlib.sha256(new_password.encode()).hexdigest()
-                st.session_state.users_df.loc[
-                    st.session_state.users_df['email'] == st.session_state['current_user'], 'password'
-                ] = hashed_new_password
+                st.session_state.users_df.loc[st.session_state.users_df['email'] == st.session_state.current_user, 'password'] = hashed_new_password
                 save_users(st.session_state.users_df)
                 st.success("Password changed successfully!")
             else:
@@ -144,14 +109,17 @@ def change_password():
         else:
             st.error("Current password is incorrect.")
 
+# Main function to handle different user actions
 def main():
-    st.sidebar.title("Authentication App")
+    st.sidebar.title("Menu")
 
-    if st.session_state['authenticated']:
-        if st.session_state['is_admin']:
+    if st.session_state.authenticated:
+        st.sidebar.write(f"Logged in as: {st.session_state.current_user}")
+
+        if st.session_state.is_admin:
             admin_dashboard()
         else:
-            show_dashboard()
+            user_dashboard()
 
         st.sidebar.markdown("---")
         if st.sidebar.button("Change Password", key="show_change_password_button"):
@@ -173,8 +141,7 @@ def main():
 def show_dashboard():
     st.sidebar.title("Dashboard")
     projects = {
-        "Portfolio Performance": portfolio_performance,  # Use the function instead of file path
-        "User Tool": portfolio_performance,
+        "Productivity Calendar": productivity_calendar,  # Use the function instead of file path
     }
 
     choice = st.sidebar.selectbox("Choose a project", list(projects.keys()), key="project_select")
@@ -185,17 +152,13 @@ def show_dashboard():
 def show_admin_dashboard():
     st.sidebar.title("Dashboard")
     projects = {
-        "Portfolio Performance": portfolio_performance,  # Use the function instead of file path
-        "Equity Transaction Viewer": equity_transactions,
-        "Equity Transaction Update Tool": equity_update_tool,
-        "Equity Portfolio Viewer": equity_portfolio_viewer,
+        "Productivity Calendar": productivity_calendar,  # Use the function instead of file path
     }
 
     choice = st.sidebar.selectbox("Choose a project", list(projects.keys()), key="project_select")
 
     if choice:
         projects[choice]()  # Call the function directly
-
 
 def admin_dashboard():
     st.sidebar.title("Admin Options")

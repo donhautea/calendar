@@ -1,0 +1,4 @@
+email,password,approved,role
+admin,d3063409662a573d75b0c6d79896d878795d6ba4a438e8a483b7ba1cadd55415,True,admin
+hauteaam@sss.gov.ph,2ba31711cfe8ad3e1750d7d60aea0fe784e352862e50da22f734a25fe0bfaad5,True,admin
+donhautea@gmail.com,2ba31711cfe8ad3e1750d7d60aea0fe784e352862e50da22f734a25fe0bfaad5,True,user
